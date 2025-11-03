@@ -73,19 +73,24 @@ function TicketForm({ onTicketCreated }) {
     numero_tramite: "",
     identificador_operacion: "",
     project_id: 0, // Iniciará vacío para forzar selección
+    subproject_id: 0, // Para subproyectos
     tracker_id: "",
     priority_id: "",
   });
 
-  const [projects, setProjects] = useState([]);
+  const [mainProjects, setMainProjects] = useState([]);
+  const [subprojects, setSubprojects] = useState({});
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [filePreviews, setFilePreviews] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchSubTerm, setSearchSubTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSubDropdownOpen, setIsSubDropdownOpen] = useState(false);
   const [errors, setErrors] = useState({});
   const dropdownRef = useRef(null);
+  const subDropdownRef = useRef(null);
 
   // Cerrar dropdown al hacer click fuera
   useEffect(() => {
@@ -94,16 +99,20 @@ function TicketForm({ onTicketCreated }) {
         setIsDropdownOpen(false);
         setSearchTerm("");
       }
+      if (subDropdownRef.current && !subDropdownRef.current.contains(event.target)) {
+        setIsSubDropdownOpen(false);
+        setSearchSubTerm("");
+      }
     };
 
-    if (isDropdownOpen) {
+    if (isDropdownOpen || isSubDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isDropdownOpen]);
+  }, [isDropdownOpen, isSubDropdownOpen]);
 
   // Cargar datos iniciales (proyectos, trackers, prioridades)
   useEffect(() => {
@@ -115,7 +124,8 @@ function TicketForm({ onTicketCreated }) {
           axios.get(`${API_URL}/api/priorities`),
         ]);
 
-        setProjects(projectsRes.data.projects || []);
+        setMainProjects(projectsRes.data.main_projects || []);
+        setSubprojects(projectsRes.data.subprojects || {});
 
         // No establecer project_id por defecto para obligar al usuario a seleccionar
 
@@ -203,15 +213,32 @@ function TicketForm({ onTicketCreated }) {
   };
 
   // Filtrar proyectos según el término de búsqueda
-  const filteredProjects = projects.filter((project) =>
+  const filteredMainProjects = mainProjects.filter((project) =>
     project.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Obtener el nombre del proyecto seleccionado
-  const selectedProject = projects.find((p) => p.id == formData.project_id);
+  // Obtener el proyecto principal seleccionado
+  const selectedMainProject = mainProjects.find((p) => p.id == formData.project_id);
+
+  // Obtener subproyectos del proyecto seleccionado
+  const availableSubprojects = selectedMainProject
+    ? (subprojects[selectedMainProject.id] || [])
+    : [];
+
+  // Filtrar subproyectos según término de búsqueda
+  const filteredSubprojects = availableSubprojects.filter((project) =>
+    project.name.toLowerCase().includes(searchSubTerm.toLowerCase())
+  );
+
+  // Obtener el subproyecto seleccionado
+  const selectedSubproject = availableSubprojects.find((p) => p.id == formData.subproject_id);
 
   const handleProjectSelect = (projectId) => {
-    setFormData((prev) => ({ ...prev, project_id: projectId }));
+    setFormData((prev) => ({
+      ...prev,
+      project_id: projectId,
+      subproject_id: 0 // Resetear subproyecto cuando cambia el proyecto principal
+    }));
     setIsDropdownOpen(false);
     setSearchTerm("");
 
@@ -223,6 +250,12 @@ function TicketForm({ onTicketCreated }) {
         return newErrors;
       });
     }
+  };
+
+  const handleSubprojectSelect = (subprojectId) => {
+    setFormData((prev) => ({ ...prev, subproject_id: subprojectId }));
+    setIsSubDropdownOpen(false);
+    setSearchSubTerm("");
   };
 
   const handleSubmit = async (e) => {
@@ -266,8 +299,15 @@ function TicketForm({ onTicketCreated }) {
       const submitData = new FormData();
 
       // Agregar campos del formulario
+      // Si hay un subproyecto seleccionado, usar ese ID; de lo contrario, usar el proyecto principal
+      const finalProjectId = formData.subproject_id || formData.project_id;
+
       Object.keys(formData).forEach((key) => {
-        if (formData[key]) {
+        // Enviar solo el project_id final (puede ser el subproyecto o el proyecto principal)
+        if (key === 'project_id') {
+          submitData.append(key, finalProjectId);
+        } else if (key !== 'subproject_id' && formData[key]) {
+          // Omitir subproject_id ya que no es parte del schema de Redmine
           submitData.append(key, formData[key]);
         }
       });
@@ -314,6 +354,7 @@ function TicketForm({ onTicketCreated }) {
         numero_tramite: "",
         identificador_operacion: "",
         project_id: formData.project_id,
+        subproject_id: formData.subproject_id,
         tracker_id: formData.tracker_id,
         priority_id: formData.priority_id,
       });
@@ -371,12 +412,12 @@ function TicketForm({ onTicketCreated }) {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Clasificación</h3>
 
+            {/* Selector de Sistema Principal */}
             <div className="space-y-2">
               <Label htmlFor="project_id">
                 Sistema <span className="text-red-500">*</span>
               </Label>
               <div className="relative" ref={dropdownRef}>
-                {/* Campo clickeable que abre el dropdown */}
                 <button
                   type="button"
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -391,8 +432,8 @@ function TicketForm({ onTicketCreated }) {
                       formData.project_id ? "text-slate-900" : "text-slate-500"
                     }
                   >
-                    {selectedProject
-                      ? selectedProject.name.toUpperCase()
+                    {selectedMainProject
+                      ? selectedMainProject.name.toUpperCase()
                       : "Seleccionar sistema..."}
                   </span>
                   <ChevronDown
@@ -402,10 +443,8 @@ function TicketForm({ onTicketCreated }) {
                   />
                 </button>
 
-                {/* Dropdown con buscador */}
                 {isDropdownOpen && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-md shadow-lg">
-                    {/* Buscador */}
                     <div className="p-2 border-b border-slate-200">
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -421,29 +460,27 @@ function TicketForm({ onTicketCreated }) {
                       </div>
                     </div>
 
-                    {/* Lista de opciones */}
                     <div className="max-h-60 overflow-y-auto">
-                      {filteredProjects.length > 0 ? (
-                        filteredProjects.map((project) => {
-                          const level = project.level || 0;
-                          const indent = level > 0 ? `${'\u00A0'.repeat(level * 4)}└─ ` : "";
-
-                          return (
-                            <button
-                              key={project.id}
-                              type="button"
-                              onClick={() => handleProjectSelect(project.id)}
-                              className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-100 ${
-                                formData.project_id == project.id
-                                  ? "bg-slate-100 font-semibold"
-                                  : ""
-                              } ${level > 0 ? "text-slate-600" : "text-slate-900"}`}
-                              style={{ fontFamily: 'monospace' }}
-                            >
-                              {indent}{project.name.toUpperCase()}
-                            </button>
-                          );
-                        })
+                      {filteredMainProjects.length > 0 ? (
+                        filteredMainProjects.map((project) => (
+                          <button
+                            key={project.id}
+                            type="button"
+                            onClick={() => handleProjectSelect(project.id)}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-100 ${
+                              formData.project_id == project.id
+                                ? "bg-slate-100 font-semibold"
+                                : ""
+                            }`}
+                          >
+                            {project.name.toUpperCase()}
+                            {project.has_subprojects && (
+                              <span className="ml-2 text-xs text-slate-500">
+                                (tiene subsistemas)
+                              </span>
+                            )}
+                          </button>
+                        ))
                       ) : (
                         <div className="px-4 py-3 text-sm text-slate-500 text-center">
                           No se encontraron sistemas
@@ -453,7 +490,6 @@ function TicketForm({ onTicketCreated }) {
                   </div>
                 )}
 
-                {/* Input oculto para envío del formulario */}
                 <input
                   type="hidden"
                   name="project_id"
@@ -464,6 +500,93 @@ function TicketForm({ onTicketCreated }) {
                 <p className="text-sm text-red-600 mt-1">{errors.project_id}</p>
               )}
             </div>
+
+            {/* Selector de Subsistema - Solo se muestra si hay subproyectos disponibles */}
+            {availableSubprojects.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="subproject_id">
+                  Sub-sistema <span className="text-slate-500">(opcional)</span>
+                </Label>
+                <div className="relative" ref={subDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsSubDropdownOpen(!isSubDropdownOpen)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-sm border border-slate-300 rounded-md bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  >
+                    <span
+                      className={
+                        formData.subproject_id ? "text-slate-900" : "text-slate-500"
+                      }
+                    >
+                      {selectedSubproject
+                        ? selectedSubproject.name.toUpperCase()
+                        : "Seleccionar sub-sistema..."}
+                    </span>
+                    <ChevronDown
+                      className={`h-4 w-4 text-slate-500 transition-transform ${
+                        isSubDropdownOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {isSubDropdownOpen && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-md shadow-lg">
+                      <div className="p-2 border-b border-slate-200">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input
+                            type="text"
+                            placeholder="Buscar sub-sistema..."
+                            value={searchSubTerm}
+                            onChange={(e) => setSearchSubTerm(e.target.value)}
+                            className="pl-9 py-2 text-sm"
+                            autoComplete="off"
+                            autoFocus
+                          />
+                        </div>
+                      </div>
+
+                      <div className="max-h-60 overflow-y-auto">
+                        {filteredSubprojects.length > 0 ? (
+                          <>
+                            {/* Opción para limpiar selección */}
+                            <button
+                              type="button"
+                              onClick={() => handleSubprojectSelect(0)}
+                              className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-100 italic ${
+                                !formData.subproject_id
+                                  ? "bg-slate-100 font-semibold"
+                                  : ""
+                              }`}
+                            >
+                              (Ninguno - usar sistema principal)
+                            </button>
+                            {filteredSubprojects.map((project) => (
+                              <button
+                                key={project.id}
+                                type="button"
+                                onClick={() => handleSubprojectSelect(project.id)}
+                                className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-100 ${
+                                  formData.subproject_id == project.id
+                                    ? "bg-slate-100 font-semibold"
+                                    : ""
+                                }`}
+                              >
+                                {project.name.toUpperCase()}
+                              </button>
+                            ))}
+                          </>
+                        ) : (
+                          <div className="px-4 py-3 text-sm text-slate-500 text-center">
+                            No se encontraron sub-sistemas
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Información del Ticket */}
