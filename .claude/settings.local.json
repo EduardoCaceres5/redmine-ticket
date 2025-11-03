@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm add:*)",
+      "Bash(pnpm remove:*)",
+      "Bash(pnpm dlx tailwindcss:*)",
+      "Bash(npx tailwindcss:*)",
+      "Bash(pnpm dlx:*)",
+      "Read(//c/Users/ecaceres/redmine-ticket-system/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
