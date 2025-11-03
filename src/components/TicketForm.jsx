@@ -424,20 +424,26 @@ function TicketForm({ onTicketCreated }) {
                     {/* Lista de opciones */}
                     <div className="max-h-60 overflow-y-auto">
                       {filteredProjects.length > 0 ? (
-                        filteredProjects.map((project) => (
-                          <button
-                            key={project.id}
-                            type="button"
-                            onClick={() => handleProjectSelect(project.id)}
-                            className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-100 ${
-                              formData.project_id == project.id
-                                ? "bg-slate-100 font-semibold"
-                                : ""
-                            }`}
-                          >
-                            {project.name.toUpperCase()}
-                          </button>
-                        ))
+                        filteredProjects.map((project) => {
+                          const level = project.level || 0;
+                          const indent = level > 0 ? `${'\u00A0'.repeat(level * 4)}└─ ` : "";
+
+                          return (
+                            <button
+                              key={project.id}
+                              type="button"
+                              onClick={() => handleProjectSelect(project.id)}
+                              className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-100 ${
+                                formData.project_id == project.id
+                                  ? "bg-slate-100 font-semibold"
+                                  : ""
+                              } ${level > 0 ? "text-slate-600" : "text-slate-900"}`}
+                              style={{ fontFamily: 'monospace' }}
+                            >
+                              {indent}{project.name.toUpperCase()}
+                            </button>
+                          );
+                        })
                       ) : (
                         <div className="px-4 py-3 text-sm text-slate-500 text-center">
                           No se encontraron sistemas
