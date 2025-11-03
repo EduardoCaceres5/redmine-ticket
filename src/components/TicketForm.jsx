@@ -22,7 +22,6 @@ import {
   ChevronDown,
   File,
   FileText,
-  FilePdf,
 } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -52,7 +51,7 @@ const getFileIcon = (fileType) => {
   if (fileType.startsWith("image/")) {
     return ImageIcon;
   } else if (fileType === "application/pdf") {
-    return FilePdf;
+    return File; // Usar File genérico para PDFs
   } else if (
     fileType.includes("text") ||
     fileType.includes("document") ||
