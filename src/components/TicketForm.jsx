@@ -20,6 +20,9 @@ import {
   Image as ImageIcon,
   Search,
   ChevronDown,
+  File,
+  FileText,
+  FilePdf,
 } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -43,6 +46,22 @@ const ticketSchema = z.object({
   numero_tramite: z.string().optional(),
   identificador_operacion: z.string().optional(),
 });
+
+// Función auxiliar para obtener el icono según el tipo de archivo
+const getFileIcon = (fileType) => {
+  if (fileType.startsWith("image/")) {
+    return ImageIcon;
+  } else if (fileType === "application/pdf") {
+    return FilePdf;
+  } else if (
+    fileType.includes("text") ||
+    fileType.includes("document") ||
+    fileType.includes("word")
+  ) {
+    return FileText;
+  }
+  return File;
+};
 
 function TicketForm({ onTicketCreated }) {
   const [formData, setFormData] = useState({
@@ -155,20 +174,14 @@ function TicketForm({ onTicketCreated }) {
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
 
-    // Filtrar solo imágenes
-    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-
-    if (imageFiles.length !== files.length) {
-      toast.warning("Solo se permiten archivos de imagen");
-    }
-
-    setSelectedFiles(imageFiles);
+    setSelectedFiles(files);
 
     // Crear previsualizaciones
-    const previews = imageFiles.map((file) => ({
+    const previews = files.map((file) => ({
       file,
-      url: URL.createObjectURL(file),
+      url: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
       name: file.name,
+      type: file.type,
     }));
 
     setFilePreviews(previews);
@@ -178,8 +191,10 @@ function TicketForm({ onTicketCreated }) {
     const newFiles = selectedFiles.filter((_, i) => i !== index);
     const newPreviews = filePreviews.filter((_, i) => i !== index);
 
-    // Liberar URL del objeto
-    URL.revokeObjectURL(filePreviews[index].url);
+    // Liberar URL del objeto si existe
+    if (filePreviews[index].url) {
+      URL.revokeObjectURL(filePreviews[index].url);
+    }
 
     setSelectedFiles(newFiles);
     setFilePreviews(newPreviews);
@@ -289,7 +304,11 @@ function TicketForm({ onTicketCreated }) {
       });
 
       // Limpiar archivos y previsualizaciones
-      filePreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
+      filePreviews.forEach((preview) => {
+        if (preview.url) {
+          URL.revokeObjectURL(preview.url);
+        }
+      });
       setSelectedFiles([]);
       setFilePreviews([]);
 
@@ -522,7 +541,7 @@ function TicketForm({ onTicketCreated }) {
             <h3 className="text-lg font-semibold">Adjuntos</h3>
 
             <div className="space-y-2">
-              <Label htmlFor="attachments">Imágenes (opcional)</Label>
+              <Label htmlFor="attachments">Archivos (opcional)</Label>
               <div className="flex items-center justify-center w-full">
                 <label
                   htmlFor="attachments"
@@ -535,13 +554,12 @@ function TicketForm({ onTicketCreated }) {
                       arrastra y suelta
                     </p>
                     <p className="text-xs text-slate-500">
-                      PNG, JPG, GIF hasta 10MB
+                      PDF, imágenes, documentos y más
                     </p>
                   </div>
                   <Input
                     id="attachments"
                     type="file"
-                    accept="image/*"
                     multiple
                     onChange={handleFileChange}
                     className="hidden"
@@ -552,37 +570,48 @@ function TicketForm({ onTicketCreated }) {
               {/* Previsualizaciones de archivos */}
               {filePreviews.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-                  {filePreviews.map((preview, index) => (
-                    <div
-                      key={index}
-                      className="relative group rounded-lg overflow-hidden border border-slate-200 bg-white"
-                    >
-                      <img
-                        src={preview.url}
-                        alt={preview.name}
-                        className="w-full h-32 object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-center">
-                        <button
-                          type="button"
-                          onClick={() => removeFile(index)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
-                          title="Eliminar archivo"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                  {filePreviews.map((preview, index) => {
+                    const FileIconComponent = getFileIcon(preview.type);
+                    const isImage = preview.url !== null;
+
+                    return (
+                      <div
+                        key={index}
+                        className="relative group rounded-lg overflow-hidden border border-slate-200 bg-white"
+                      >
+                        {isImage ? (
+                          <img
+                            src={preview.url}
+                            alt={preview.name}
+                            className="w-full h-32 object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-32 flex items-center justify-center bg-slate-100">
+                            <FileIconComponent className="w-12 h-12 text-slate-400" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-center">
+                          <button
+                            type="button"
+                            onClick={() => removeFile(index)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
+                            title="Eliminar archivo"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="p-2 bg-slate-50">
+                          <p
+                            className="text-xs text-slate-600 truncate"
+                            title={preview.name}
+                          >
+                            <FileIconComponent className="w-3 h-3 inline mr-1" />
+                            {preview.name}
+                          </p>
+                        </div>
                       </div>
-                      <div className="p-2 bg-slate-50">
-                        <p
-                          className="text-xs text-slate-600 truncate"
-                          title={preview.name}
-                        >
-                          <ImageIcon className="w-3 h-3 inline mr-1" />
-                          {preview.name}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
