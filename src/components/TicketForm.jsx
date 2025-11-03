@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useKeycloak } from '@react-keycloak/web';
 import axios from "axios";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -63,6 +64,8 @@ const getFileIcon = (fileType) => {
 };
 
 function TicketForm({ onTicketCreated }) {
+  const { keycloak } = useKeycloak();
+
   const [formData, setFormData] = useState({
     subject: "",
     description: "",
@@ -268,6 +271,19 @@ function TicketForm({ onTicketCreated }) {
           submitData.append(key, formData[key]);
         }
       });
+
+      // Agregar información del usuario autenticado desde Keycloak
+      if (keycloak.authenticated && keycloak.tokenParsed) {
+        const userInfo = {
+          email: keycloak.tokenParsed.email || '',
+          username: keycloak.tokenParsed.preferred_username || '',
+          name: keycloak.tokenParsed.name || keycloak.tokenParsed.preferred_username || '',
+          sub: keycloak.tokenParsed.sub || '', // ID único del usuario en Keycloak
+        };
+
+        // Enviar como JSON string
+        submitData.append('user_info', JSON.stringify(userInfo));
+      }
 
       // Agregar archivos
       selectedFiles.forEach((file) => {
