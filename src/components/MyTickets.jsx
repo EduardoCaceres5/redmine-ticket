@@ -3,6 +3,7 @@ import { useKeycloak } from '@react-keycloak/web';
 import { Link } from 'react-router-dom';
 import axios from "axios";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,6 +22,7 @@ import {
   Clock,
   Plus,
   X,
+  ArrowLeft,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -151,17 +153,33 @@ const MyTickets = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Lista de tickets */}
-          <div className="space-y-4">
+        <div className={`grid gap-6 ${selectedTicket ? 'lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-2'}`}>
+          {/* Lista de tickets - oculta en móvil cuando hay ticket seleccionado */}
+          <div className={`space-y-4 ${selectedTicket ? 'hidden lg:block' : 'block'}`}>
             {tickets.map((ticket) => (
-              <Card
+              <motion.div
                 key={ticket.id}
-                className={`cursor-pointer transition-all hover:shadow-md ${
-                  selectedTicket?.id === ticket.id ? 'ring-2 ring-primary' : ''
-                }`}
-                onClick={() => handleViewDetails(ticket.id)}
+                layout
+                initial={{ opacity: 0, y: 20 }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                  scale: selectedTicket?.id === ticket.id ? 0.95 : 1
+                }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                whileHover={{ scale: selectedTicket?.id === ticket.id ? 0.95 : 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{
+                  duration: 0.3,
+                  ease: "easeInOut"
+                }}
               >
+                <Card
+                  className={`cursor-pointer transition-all hover:shadow-md ${
+                    selectedTicket?.id === ticket.id ? 'ring-2 ring-primary' : ''
+                  }`}
+                  onClick={() => handleViewDetails(ticket.id)}
+                >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
@@ -198,35 +216,68 @@ const MyTickets = () => {
                   </div>
                 </CardContent>
               </Card>
+              </motion.div>
             ))}
           </div>
 
-          {/* Detalle del ticket seleccionado */}
-          <div className="lg:sticky lg:top-4 lg:h-fit">
-            {loadingDetail ? (
-              <Card>
-                <CardContent className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                </CardContent>
-              </Card>
-            ) : selectedTicket ? (
-              <Card>
+          {/* Detalle del ticket seleccionado - muestra en pantalla completa en móvil */}
+          <div className={`lg:sticky lg:top-4 lg:h-fit ${selectedTicket ? 'block' : 'hidden lg:block'}`}>
+            <AnimatePresence mode="wait">
+              {loadingDetail ? (
+                <motion.div
+                  key="loading"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Card>
+                    <CardContent className="flex items-center justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ) : selectedTicket ? (
+                <motion.div
+                  key={`ticket-${selectedTicket.id}`}
+                  initial={{ opacity: 0, x: 50, scale: 0.9 }}
+                  animate={{ opacity: 1, x: 0, scale: 1.02 }}
+                  exit={{ opacity: 0, x: -50, scale: 0.9 }}
+                  transition={{
+                    duration: 0.4,
+                    ease: [0.34, 1.56, 0.64, 1]
+                  }}
+                >
+                  <Card>
                 <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <TicketIcon className="w-5 h-5" />
-                        Ticket #{selectedTicket.id}
-                      </CardTitle>
-                      <CardDescription>
-                        {selectedTicket.project?.name}
-                      </CardDescription>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2 flex-1">
+                      {/* Botón de volver - solo visible en móvil */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedTicket(null)}
+                        className="lg:hidden h-8 w-8 p-0 shrink-0"
+                        title="Volver a la lista"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </Button>
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <TicketIcon className="w-5 h-5" />
+                          Ticket #{selectedTicket.id}
+                        </CardTitle>
+                        <CardDescription>
+                          {selectedTicket.project?.name}
+                        </CardDescription>
+                      </div>
                     </div>
+                    {/* Botón de cerrar - solo visible en desktop */}
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelectedTicket(null)}
-                      className="h-8 w-8 p-0"
+                      className="hidden lg:block h-8 w-8 p-0 shrink-0"
                       title="Cerrar detalle"
                     >
                       <X className="h-4 w-4" />
@@ -328,17 +379,27 @@ const MyTickets = () => {
                   )}
                 </CardContent>
               </Card>
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Eye className="w-16 h-16 text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">Selecciona un ticket</h3>
-                  <p className="text-muted-foreground text-center">
-                    Haz clic en un ticket para ver sus detalles
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      <Eye className="w-16 h-16 text-muted-foreground mb-4" />
+                      <h3 className="text-xl font-semibold mb-2">Selecciona un ticket</h3>
+                      <p className="text-muted-foreground text-center">
+                        Haz clic en un ticket para ver sus detalles
+                      </p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       )}
@@ -347,7 +408,7 @@ const MyTickets = () => {
       <Link to="/nuevo-ticket">
         <Button
           size="lg"
-          className="fixed bottom-6 right-6 h-14 px-6 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 bg-blue-900 hover:bg-blue-950 text-white flex items-center gap-2"
+          className="fixed bottom-24 right-6 h-14 px-6 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 bg-blue-900 hover:bg-blue-950 text-white flex items-center gap-2"
           title="Crear nuevo ticket"
         >
           <Plus className="h-6 w-6 text-white" strokeWidth={2.5} />

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { ReactKeycloakProvider } from '@react-keycloak/web';
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 import TicketForm from "./components/TicketForm";
 import MyTickets from "./components/MyTickets";
 import PrivateRoute from "./components/PrivateRoute";
@@ -43,10 +44,6 @@ function AppRoutes() {
           element={
             <div className="container mx-auto px-4 py-8 max-w-4xl">
               <TicketForm onTicketCreated={handleTicketCreated} />
-
-              <footer className="mt-8 text-center text-sm text-slate-500">
-                Sistema integrado con Redmine
-              </footer>
             </div>
           }
         />
@@ -74,10 +71,13 @@ function App() {
       onEvent={onKeycloakEvent}
     >
       <BrowserRouter>
-        <div className="min-h-screen bg-slate-50">
+        <div className="min-h-screen bg-slate-50 flex flex-col">
           <Toaster position="top-right" richColors />
           <Navbar />
-          <AppRoutes />
+          <main className="flex-1">
+            <AppRoutes />
+          </main>
+          <Footer />
         </div>
       </BrowserRouter>
     </ReactKeycloakProvider>
