@@ -1,6 +1,7 @@
 import { useKeycloak } from '@react-keycloak/web';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, TicketIcon } from 'lucide-react';
 import logo from "../assets/logo.png";
 
 function Navbar() {
@@ -15,7 +16,7 @@ function Navbar() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between min-h-16 py-3 gap-4">
           {/* Logo y título */}
-          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+          <Link to="/" className="flex items-center space-x-2 sm:space-x-3 min-w-0">
             <img src={logo} alt="VUE Logo" className="h-8 sm:h-10 w-auto flex-shrink-0" />
             <div className="flex flex-col min-w-0">
               <h1 className="text-base sm:text-xl font-bold text-slate-900 truncate">
@@ -25,11 +26,22 @@ function Navbar() {
                 Gestión de soporte técnico
               </p>
             </div>
-          </div>
+          </Link>
 
-          {/* Información del usuario y logout */}
+          {/* Navegación y usuario */}
           {initialized && keycloak.authenticated && (
             <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+              {/* Enlace Mis Tickets */}
+              <Link to="/">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-slate-700 hover:text-slate-900 flex items-center gap-2"
+                >
+                  <TicketIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline">Mis Tickets</span>
+                </Button>
+              </Link>
               {/* Info del usuario - oculta en móvil pequeño */}
               <div className="hidden md:flex flex-col items-end">
                 <div className="flex items-center space-x-2 text-sm text-slate-700">

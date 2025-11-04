@@ -1,11 +1,12 @@
 import { useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { ReactKeycloakProvider } from '@react-keycloak/web';
 import Navbar from "./components/Navbar";
 import TicketForm from "./components/TicketForm";
+import MyTickets from "./components/MyTickets";
 import PrivateRoute from "./components/PrivateRoute";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Toaster } from "@/components/ui/sonner";
-import { CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 import keycloak, { onAuthSuccess } from './keycloak';
 
 // Configuración de inicialización de Keycloak
@@ -15,20 +16,49 @@ const keycloakProviderInitConfig = {
   pkceMethod: 'S256' // Usar PKCE para mayor seguridad
 };
 
-function App() {
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [createdTicket, setCreatedTicket] = useState(null);
+// Componente de rutas que usa useNavigate
+function AppRoutes() {
+  const navigate = useNavigate();
 
   const handleTicketCreated = (ticket) => {
-    setCreatedTicket(ticket);
-    setShowSuccess(true);
+    // Mostrar toast de éxito
+    toast.success(`Ticket #${ticket.id} creado exitosamente`, {
+      description: ticket.subject,
+      duration: 5000,
+    });
 
-    // Ocultar mensaje después de 5 segundos
-    setTimeout(() => {
-      setShowSuccess(false);
-      setCreatedTicket(null);
-    }, 5000);
+    // Redirigir a la lista de tickets
+    navigate('/');
   };
+
+  return (
+    <PrivateRoute>
+      <Routes>
+        {/* Ruta principal: ver mis tickets */}
+        <Route path="/" element={<MyTickets />} />
+
+        {/* Ruta para crear nuevo ticket */}
+        <Route
+          path="/nuevo-ticket"
+          element={
+            <div className="container mx-auto px-4 py-8 max-w-4xl">
+              <TicketForm onTicketCreated={handleTicketCreated} />
+
+              <footer className="mt-8 text-center text-sm text-slate-500">
+                Sistema integrado con Redmine
+              </footer>
+            </div>
+          }
+        />
+
+        {/* Redirigir rutas no encontradas a la página principal */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </PrivateRoute>
+  );
+}
+
+function App() {
 
   // Evento que se ejecuta cuando hay cambios en la autenticación
   const onKeycloakEvent = (event) => {
@@ -43,30 +73,13 @@ function App() {
       initOptions={keycloakProviderInitConfig}
       onEvent={onKeycloakEvent}
     >
-      <div className="min-h-screen bg-slate-50">
-        <Toaster position="top-right" richColors />
-        <Navbar />
-
-        <PrivateRoute>
-          <div className="container mx-auto px-4 py-8 max-w-4xl">
-            {showSuccess && createdTicket && (
-              <Alert variant="success" className="mb-6">
-                <CheckCircle2 className="h-4 w-4" />
-                <AlertTitle>Ticket creado exitosamente</AlertTitle>
-                <AlertDescription>
-                  Ticket #{createdTicket.id}: {createdTicket.subject}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <TicketForm onTicketCreated={handleTicketCreated} />
-
-            <footer className="mt-8 text-center text-sm text-slate-500">
-              Sistema integrado con Redmine
-            </footer>
-          </div>
-        </PrivateRoute>
-      </div>
+      <BrowserRouter>
+        <div className="min-h-screen bg-slate-50">
+          <Toaster position="top-right" richColors />
+          <Navbar />
+          <AppRoutes />
+        </div>
+      </BrowserRouter>
     </ReactKeycloakProvider>
   );
 }
